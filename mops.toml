@@ -1,0 +1,10 @@
+[package]
+name = "enumeration"
+version = "0.1.0"
+description = "Add-only set of blobs with numbering and two-way lookup storing blobs in regions"
+repository = "https://github.com/research-ag/enumeration"
+keywords = [ "set", "bijective", "map", "lookup", "key", "stable" ]
+license = "Apache-2.0"
+
+[dependencies]
+base = "0.10.0"

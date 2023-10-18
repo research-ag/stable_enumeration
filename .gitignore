@@ -1,0 +1,9 @@
+.dfx
+.mops
+.tmp
+.vessel/
+.vscode/
+.DS_Store
+*.wasm
+site/
+modoc-tmp
