@@ -24,6 +24,7 @@ import Nat32 "mo:base/Nat32";
 import Prim "mo:⛔";
 import Region "mo:base/Region";
 import Nat64 "mo:base/Nat64";
+import BTree "mo:btree/BTree";
 
 module {
   public type BufferRep = {
@@ -34,87 +35,75 @@ module {
     var elems_count : Nat64;
   };
 
-  let elem_size = 16 : Nat64; /* two Nat64s, for pos and size. */
+  module Buffer {
+    let elem_size = 16 : Nat64; /* two Nat64s, for pos and size. */
 
-  func regionEnsureSizeBytes(r : Region, new_byte_count : Nat64) {
-    let pages = Region.size(r);
-    if (new_byte_count > pages << 16) {
-      let new_pages = ((new_byte_count + ((1 << 16) - 1)) / (1 << 16)) - pages;
-      assert Region.grow(r, new_pages) == pages;
+    func regionEnsureSizeBytes(r : Region, new_byte_count : Nat64) {
+      let pages = Region.size(r);
+      if (new_byte_count > pages << 16) {
+        let new_pages = ((new_byte_count + ((1 << 16) - 1)) / (1 << 16)) - pages;
+        assert Region.grow(r, new_pages) == pages;
+      };
+    };
+
+    public func new() : BufferRep = {
+      bytes = Region.new();
+      var bytes_count = 0;
+      elems = Region.new();
+      var elems_count = 0;
+    };
+
+    public func add(self : BufferRep, blob : Blob) {
+      let elem_i = self.elems_count;
+      self.elems_count += 1;
+
+      let elem_pos = self.bytes_count;
+      self.bytes_count += Prim.natToNat64(blob.size());
+
+      regionEnsureSizeBytes(self.bytes, self.bytes_count);
+      Region.storeBlob(self.bytes, elem_pos, blob);
+
+      regionEnsureSizeBytes(self.elems, self.elems_count * elem_size);
+      Region.storeNat64(self.elems, elem_i * elem_size + 0, elem_pos);
+      Region.storeNat64(self.elems, elem_i * elem_size + 8, Prim.natToNat64(blob.size()));
+    };
+
+    public func get(self : BufferRep, index : Nat64) : Blob {
+      assert index < self.elems_count;
+      let pos = Region.loadNat64(self.elems, index * elem_size);
+      let size = Region.loadNat64(self.elems, index * elem_size + 8);
+      Region.loadBlob(self.bytes, pos, Prim.nat64ToNat(size));
+    };
+
+    public func size(self : BufferRep) : Nat {
+      Nat64.toNat(self.elems_count);
     };
   };
 
-  func bufferUnwrap(rep : ?BufferRep) : BufferRep {
-    let ?self = rep else Prim.trap("Buffer rep is uninitialized");
-    self;
-  };
-
-  func bufferAdd(rep : ?BufferRep, blob : Blob) {
-    let self = bufferUnwrap(rep);
-    let elem_i = self.elems_count;
-    self.elems_count += 1;
-
-    let elem_pos = self.bytes_count;
-    self.bytes_count += Prim.natToNat64(blob.size());
-
-    regionEnsureSizeBytes(self.bytes, self.bytes_count);
-    Region.storeBlob(self.bytes, elem_pos, blob);
-
-    regionEnsureSizeBytes(self.elems, self.elems_count * elem_size);
-    Region.storeNat64(self.elems, elem_i * elem_size + 0, elem_pos);
-    Region.storeNat64(self.elems, elem_i * elem_size + 8, Prim.natToNat64(blob.size()));
-  };
-
-  func bufferGet(rep : ?BufferRep, index : Nat64) : Blob {
-    let self = bufferUnwrap(rep);
-
-    assert index < self.elems_count;
-    let pos = Region.loadNat64(self.elems, index * elem_size);
-    let size = Region.loadNat64(self.elems, index * elem_size + 8);
-    Region.loadBlob(self.bytes, pos, Prim.nat64ToNat(size));
-  };
-
-  func bufferSize(rep : ?BufferRep) : Nat {
-    let self = bufferUnwrap(rep);
-    Nat64.toNat(self.elems_count);
-  };
-
-  /// Red-black tree of key `Nat`.
-  public type Tree = ?({ #R; #B }, Tree, Nat, Tree);
-
-  /// Common functions between both classes
-  func lbalance(left : Tree, y : Nat, right : Tree) : Tree {
-    switch (left, right) {
-      case (?(#R, ?(#R, l1, y1, r1), y2, r2), r) ?(#R, ?(#B, l1, y1, r1), y2, ?(#B, r2, y, r));
-      case (?(#R, l1, y1, ?(#R, l2, y2, r2)), r) ?(#R, ?(#B, l1, y1, l2), y2, ?(#B, r2, y, r));
-      case _ ?(#B, left, y, right);
-    };
-  };
-
-  func rbalance(left : Tree, y : Nat, right : Tree) : Tree {
-    switch (left, right) {
-      case (l, ?(#R, l1, y1, ?(#R, l2, y2, r2))) ?(#R, ?(#B, l, y, l1), y1, ?(#B, l2, y2, r2));
-      case (l, ?(#R, ?(#R, l1, y1, r1), y2, r2)) ?(#R, ?(#B, l, y, l1), y1, ?(#B, r1, y2, r2));
-      case _ ?(#B, left, y, right);
-    };
-  };
-
-  // approximate growth by sqrt(2) by 2-powers
-  // the function will trap if n == 0 or n >= 3 * 2 ** 30
-  func next_size(n_ : Nat) : Nat {
-    if (n_ == 1) return 2;
-    let n = Nat32.fromNat(n_); // traps if n >= 2 ** 32
-    let s = 30 - Nat32.bitcountLeadingZero(n); // traps if n == 0
-    let m = ((n >> s) +% 1) << s;
-    assert (m != 0); // traps if n >= 3 * 2 ** 30
-    Nat32.toNat(m);
+  type State = {
+    btree : BTree.BTree<Blob, Nat>;
+    array : BufferRep;
   };
 
   /// An optimized version of Enumeration<Blob>
   public class Enumeration() {
-    private var stableRep : ?BufferRep = null;
+    let value_conv = BTree.nconv(8);
+    let key_conv = BTree.noconv(29);
+    private var _state : ?State = null;
 
-    private var tree = (null : Tree);
+    func state() : State {
+      switch (_state) {
+        case (?s) s;
+        case (null) {
+          let ret = {
+            btree = BTree.new<Blob, Nat>(key_conv, value_conv);
+            array = Buffer.new();
+          };
+          _state := ?ret;
+          ret;
+        };
+      };
+    };
 
     /// Add `key` to enumeration. Returns `size` if the key in new to the enumeration and index of key in enumeration otherwise.
     ///
@@ -127,47 +116,17 @@ module {
     /// ```
     /// Runtime: O(log(n))
     public func add(key : Blob) : Nat {
-      let size = bufferSize(stableRep);
-      var index = size;
-
-      func insert(tree : Tree) : Tree {
-        switch tree {
-          case (?(#B, left, y, right)) {
-            let res = Prim.blobCompare(key, bufferGet(stableRep, Nat64.fromNat(y)));
-            if (res < 0) {
-              lbalance(insert(left), y, right);
-            } else if (res > 0) {
-              rbalance(left, y, insert(right));
-            } else {
-              index := y;
-              tree;
-            };
-          };
-          case (?(#R, left, y, right)) {
-            let res = Prim.blobCompare(key, bufferGet(stableRep, Nat64.fromNat(y)));
-            if (res < 0) {
-              ?(#R, insert(left), y, right);
-            } else if (res > 0) {
-              ?(#R, left, y, insert(right));
-            } else {
-              index := y;
-              tree;
-            };
-          };
-          case (null) {
-            index := size;
-            ?(#R, null, size, null);
-          };
+      let index = switch (BTree.get(state().btree, key_conv, key, value_conv)) {
+        case (?index) {
+          index;
         };
-      };
+        case (null) {
+          let index = Buffer.size(state().array);
+          ignore BTree.put(state().btree, key_conv, key, value_conv, index);
 
-      tree := switch (insert(tree)) {
-        case (?(#R, left, y, right)) ?(#B, left, y, right);
-        case other other;
-      };
-
-      if (index == size) {
-        bufferAdd(stableRep, key);
+          Buffer.add(state().array, key);
+          index;
+        };
       };
 
       index;
@@ -186,24 +145,7 @@ module {
     /// ```
     /// Runtime: O(log(n))
     public func lookup(key : Blob) : ?Nat {
-      func get_in_tree(x : Blob, t : Tree) : ?Nat {
-        switch t {
-          case (?(_, l, y, r)) {
-
-            let res = Prim.blobCompare(key, bufferGet(stableRep, Nat64.fromNat(y)));
-            if (res < 0) {
-              get_in_tree(x, l);
-            } else if (res > 0) {
-              get_in_tree(x, r);
-            } else {
-              ?y;
-            };
-          };
-          case (null) null;
-        };
-      };
-
-      get_in_tree(key, tree);
+      BTree.get(state().btree, key_conv, key, value_conv);
     };
 
     /// Returns `K` with index `index`. Traps it index is out of bounds.
@@ -218,7 +160,7 @@ module {
     /// ```
     /// Runtime: O(1)
     public func get(index : Nat) : Blob {
-      bufferGet(stableRep, Nat64.fromNat(index));
+      Buffer.get(state().array, Nat64.fromNat(index));
     };
 
     /// Returns number of unique keys added to enumeration.
@@ -231,7 +173,7 @@ module {
     /// assert(e.size() == 2);
     /// ```
     /// Runtime: O(1)
-    public func size() : Nat = bufferSize(stableRep);
+    public func size() : Nat = Buffer.size(state().array);
 
     /// Returns pair of red-black tree for map from `K` to `Nat` and
     /// array of `K` for map from `Nat` to `K`.
@@ -244,8 +186,8 @@ module {
     /// e.unsafeUnshare(e.share()); // Nothing changed
     /// ```
     /// Runtime: O(1)
-    public func share() : (Tree, BufferRep) {
-      (tree, bufferUnwrap(stableRep));
+    public func share() : State {
+      state();
     };
 
     /// Sets internal content from red-black tree for map from `K` to `Nat`
@@ -261,9 +203,8 @@ module {
     /// e.unsafeUnshare(e.share()); // Nothing changed
     /// ```
     /// Runtime: O(1)
-    public func unsafeUnshare(data : (Tree, BufferRep)) {
-      tree := data.0;
-      stableRep := ?data.1;
+    public func unsafeUnshare(data : State) {
+      _state := ?data;
     };
   };
 };
