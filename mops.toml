@@ -7,5 +7,5 @@ keywords = [ "set", "bijective", "map", "lookup", "key", "stable" ]
 license = "Apache-2.0"
 
 [dependencies]
-base = "0.10.0"
-btree = "https://github.com/sardariuss/MotokoStableBTree"
+base = "0.10.1"
+btree = "https://github.com/research-ag/MotokoStableBTree#main"

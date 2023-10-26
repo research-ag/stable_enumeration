@@ -116,19 +116,11 @@ module {
     /// ```
     /// Runtime: O(log(n))
     public func add(key : Blob) : Nat {
-      let index = switch (BTree.get(state().btree, key_conv, key, value_conv)) {
-        case (?index) {
-          index;
-        };
-        case (null) {
-          let index = Buffer.size(state().array);
-          ignore BTree.put(state().btree, key_conv, key, value_conv, index);
-
-          Buffer.add(state().array, key);
-          index;
-        };
+      let size = Buffer.size(state().array);
+      let index = BTree.getOrPut(state().btree, key_conv, key, value_conv, size);
+      if (index == size) {
+        Buffer.add(state().array, key);
       };
-
       index;
     };
 

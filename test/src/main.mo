@@ -1,5 +1,6 @@
 import Enumeration "../../src/lib";
 import Region "mo:base/Region";
+import Debug "mo:base/Debug";
 
 actor {
   public query func greet(name : Text) : async Text {
