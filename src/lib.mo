@@ -80,7 +80,7 @@ module {
     };
   };
 
-  type State = {
+  public type StableData = {
     btree : BTree.BTree<Blob, Nat>;
     array : BufferRep;
   };
@@ -89,9 +89,9 @@ module {
   public class Enumeration() {
     let value_conv = BTree.nconv(8);
     let key_conv = BTree.noconv(29);
-    private var _state : ?State = null;
+    private var _state : ?StableData = null;
 
-    func state() : State {
+    func state() : StableData {
       switch (_state) {
         case (?s) s;
         case (null) {
@@ -178,7 +178,7 @@ module {
     /// e.unsafeUnshare(e.share()); // Nothing changed
     /// ```
     /// Runtime: O(1)
-    public func share() : State {
+    public func share() : StableData {
       state();
     };
 
@@ -195,7 +195,7 @@ module {
     /// e.unsafeUnshare(e.share()); // Nothing changed
     /// ```
     /// Runtime: O(1)
-    public func unsafeUnshare(data : State) {
+    public func unsafeUnshare(data : StableData) {
       _state := ?data;
     };
   };
