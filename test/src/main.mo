@@ -7,6 +7,11 @@ import Principal "mo:base/Principal";
 import Text "mo:base/Text";
 import Nat8 "mo:base/Nat8";
 import Option "mo:base/Option";
+import Nat64 "mo:base/Nat64";
+import E "mo:base/ExperimentalInternetComputer";
+import Nat "mo:base/Nat";
+import Int "mo:base/Int";
+import Float "mo:base/Float";
 import { test; suite } "mo:test";
 
 actor {
@@ -82,5 +87,54 @@ actor {
         );
       },
     );
+  };
+
+  public query func profile() : async () {
+    let n = 2 ** 12;
+    let r = RNG();
+    let enum = Enumeration.Enumeration();
+    let blobs = Array.tabulate<Blob>(n, func(i) = r.blob());
+
+    var m = 1;
+    ignore enum.add(blobs[0]);
+    while (m < n) {
+      var sum = 0;
+      var i = 0;
+      while (i < 2 * m) {
+        sum += Nat64.toNat(E.countInstructions(func() = ignore enum.lookup(blobs[i])));
+        i += 1;
+      };
+      Debug.print("n = " # Nat.toText(2 * m) # " instructions = " # Nat.toText(Int.abs(Float.toInt(Float.fromInt(sum) / Float.fromInt(2 * m)))));
+
+      i := m;
+      while (i < 2 * m) {
+        ignore enum.add(blobs[i]);
+        i += 1;
+      };
+      m *= 2;
+    };
+  };
+
+  public query func profile_size(n : Nat) : async Float {
+    let r = RNG();
+    let enum = Enumeration.Enumeration();
+    let blobs = Array.tabulate<Blob>(n, func(i) = r.blob());
+
+    ignore enum.add(blobs[0]);
+    let one = Nat64.toNat(E.countInstructions(func() = ignore enum.lookup(blobs[0])));
+
+    var i = 1;
+    while (i < n) {
+      ignore enum.add(blobs[i]);
+      i += 1;
+    };
+
+    i := 0;
+    var sum = 0;
+    while (i < Nat.min(n, 10)) {
+      sum += Nat64.toNat(E.countInstructions(func() = ignore enum.lookup(blobs[i])));
+      i += 1;
+    };
+    Float.fromInt(sum) / Float.fromInt(Nat.min(n, 10)) / Float.fromInt(one) / Float.log(Float.fromInt(n));
   };
 };
