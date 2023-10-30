@@ -100,11 +100,11 @@ actor {
     while (m < n) {
       var sum = 0;
       var i = 0;
-      while (i < 2 * m) {
+      while (i < 2) {
         sum += Nat64.toNat(E.countInstructions(func() = ignore enum.lookup(blobs[i])));
         i += 1;
       };
-      Debug.print("n = " # Nat.toText(2 * m) # " instructions = " # Nat.toText(Int.abs(Float.toInt(Float.fromInt(sum) / Float.fromInt(2 * m)))));
+      Debug.print("n = " # Nat.toText(m) # " instructions = " # Nat.toText(Int.abs(Float.toInt(Float.fromInt(sum) / Float.fromInt(2 * m)))) # " memory tree = " # Nat64.toText(Region.size(enum.share().btree.region)) # " memory total = " # Nat64.toText(Region.size(enum.share().array.bytes) + Region.size(enum.share().array.elems)));
 
       i := m;
       while (i < 2 * m) {
@@ -136,5 +136,32 @@ actor {
       i += 1;
     };
     Float.fromInt(sum) / Float.fromInt(Nat.min(n, 10)) / Float.fromInt(one) / Float.log(Float.fromInt(n));
+  };
+
+  let enum = Enumeration.Enumeration();
+
+  public query func add() : async () {
+    let n = 2 ** 12;
+    let r = RNG();
+    var i = 1;
+    while (i < n) {
+      ignore enum.add(r.blob());
+      i += 1;
+    };
+  };
+
+  public shared func add_many() : async () {
+    let n = 2 ** 8;
+    var i = 1;
+    while (i < n) {
+      Debug.print(Nat.toText(i));
+      await add();
+      i += 1;
+    };
+  };
+
+  public query func test_access() : async () {
+    let r = RNG();
+    Debug.print(debug_show (E.countInstructions(func() = ignore enum.lookup(r.blob())), enum.size()));
   };
 };
