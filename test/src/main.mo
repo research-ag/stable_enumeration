@@ -90,23 +90,19 @@ actor {
   };
 
   public query func profile() : async () {
-    let n = 2 ** 12;
+    let n = 2 ** 13;
     let r = RNG();
     let enum = Enumeration.Enumeration();
     let blobs = Array.tabulate<Blob>(n, func(i) = r.blob());
 
     var m = 1;
     ignore enum.add(blobs[0]);
-    while (m < n) {
-      var sum = 0;
-      var i = 0;
-      while (i < 2) {
-        sum += Nat64.toNat(E.countInstructions(func() = ignore enum.lookup(blobs[i])));
-        i += 1;
-      };
-      Debug.print("n = " # Nat.toText(m) # " instructions = " # Nat.toText(Int.abs(Float.toInt(Float.fromInt(sum) / Float.fromInt(2 * m)))) # " memory tree = " # Nat64.toText(Region.size(enum.share().btree.region)) # " memory total = " # Nat64.toText(Region.size(enum.share().array.bytes) + Region.size(enum.share().array.elems)));
 
-      i := m;
+    while (m < n) {
+      let blob = r.blob();
+      Debug.print("n = " # Nat.toText(m) # " instructions = " # Nat.toText(Nat64.toNat(E.countInstructions(func() = ignore enum.lookup(blob)))) # " memory tree = " # Nat64.toText(Region.size(enum.share().btree.region)) # " memory total = " # Nat64.toText(Region.size(enum.share().array.bytes) + Region.size(enum.share().array.elems)));
+
+      var i = m;
       while (i < 2 * m) {
         ignore enum.add(blobs[i]);
         i += 1;
@@ -159,7 +155,8 @@ actor {
         await add();
         i += 1;
       };
-      Debug.print(debug_show (E.countInstructions(func() = ignore enum.lookup(r.blob())), enum.size()));
+      let blob = r.blob();
+      Debug.print(debug_show (E.countInstructions(func() = ignore enum.lookup(blob)), enum.size()));
     };
   };
 };
