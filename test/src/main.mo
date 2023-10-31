@@ -139,11 +139,11 @@ actor {
   };
 
   let enum = Enumeration.Enumeration();
+  let r = RNG();
 
-  public query func add() : async () {
+  public shared func add() : async () {
     let n = 2 ** 12;
-    let r = RNG();
-    var i = 1;
+    var i = 0;
     while (i < n) {
       ignore enum.add(r.blob());
       i += 1;
@@ -151,17 +151,15 @@ actor {
   };
 
   public shared func add_many() : async () {
-    let n = 2 ** 8;
-    var i = 1;
-    while (i < n) {
-      Debug.print(Nat.toText(i));
-      await add();
-      i += 1;
+    await add();
+    while (true) {
+      let n = enum.size() / 2 ** 12;
+      var i = 0;
+      while (i < n) {
+        await add();
+        i += 1;
+      };
+      Debug.print(debug_show (E.countInstructions(func() = ignore enum.lookup(r.blob())), enum.size()));
     };
-  };
-
-  public query func test_access() : async () {
-    let r = RNG();
-    Debug.print(debug_show (E.countInstructions(func() = ignore enum.lookup(r.blob())), enum.size()));
   };
 };
