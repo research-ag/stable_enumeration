@@ -36,19 +36,19 @@ actor {
   };
 
   public query func test_it() : async () {
-    let n = 100;
-    let r = RNG();
-    let b = Enumeration.Enumeration();
-    let blobs = Array.tabulate<Blob>(n, func(i) = r.blob());
-
-    var i = 0;
-
     suite(
       "Enumeration",
       func() {
         test(
           "Blob",
           func() {
+            let n = 100;
+            let r = RNG();
+            let b = Enumeration.Enumeration();
+            let blobs = Array.tabulate<Blob>(n, func(i) = r.blob());
+
+            var i = 0;
+
             assert (b.size() == 0);
             i := 0;
             while (i < n) {
@@ -83,6 +83,16 @@ actor {
               assert (b.get(i) == blobs[i]);
               i += 1;
             };
+          },
+        );
+        test(
+          "Empty blob",
+          func() {
+            let b = Enumeration.Enumeration();
+            let blob = Principal.toBlob(Principal.fromText("aaaaa-aa"));
+            assert b.add(blob) == 0;
+            assert b.get(0) == blob;
+            assert b.lookup(blob) == ?0;
           },
         );
       },

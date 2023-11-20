@@ -61,7 +61,9 @@ module {
       self.bytes_count += Prim.natToNat64(blob.size());
 
       regionEnsureSizeBytes(self.bytes, self.bytes_count);
-      Region.storeBlob(self.bytes, elem_pos, blob);
+      if (blob.size() != 0) {
+        Region.storeBlob(self.bytes, elem_pos, blob);
+      };
 
       regionEnsureSizeBytes(self.elems, self.elems_count * elem_size);
       Region.storeNat64(self.elems, elem_i * elem_size + 0, elem_pos);
@@ -72,7 +74,11 @@ module {
       assert index < self.elems_count;
       let pos = Region.loadNat64(self.elems, index * elem_size);
       let size = Region.loadNat64(self.elems, index * elem_size + 8);
-      Region.loadBlob(self.bytes, pos, Prim.nat64ToNat(size));
+      if (size != 0) {
+        Region.loadBlob(self.bytes, pos, Prim.nat64ToNat(size));
+      } else {
+        Blob.fromArray([]);
+      };
     };
 
     public func size(self : BufferRep) : Nat {
