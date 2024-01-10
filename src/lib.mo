@@ -1,18 +1,15 @@
-/// `Enumeration<K>` is a "set enumeration" of elements of type `K` called "keys".
-///
+/// `Enumeration` is a "set enumeration" of elements of `Blob`s called "keys".
+
 /// A typical application is to assign permanent user numbers to princpals.
-///
-/// The data structure is a map `Nat -> K` with the following properties:
+
+/// The data structure is a map `Nat -> Blob` with the following properties:
 /// * keys are not repeated, i.e. the map is injective
 /// * keys are consecutively numbered (no gaps), i.e. if n keys are stored
-///   then `[0,n) -> K` is bijective
+///   then `[0,n) -> Blob` is bijective
 /// * keys are numbered in the order they are added to the data structure
 /// * keys cannot be deleted
-/// * efficient inverse lookup `K -> Nat`
+/// * efficient inverse lookup `Blob -> Nat`
 /// * doubles as a set implementation (without deletion)
-///
-/// The data structure is optimized primarily for memory efficiency
-/// and secondarily for instruction efficiency.
 ///
 /// Copyright: 2023 MR Research AG
 /// Main author: Andrii Stepanov (AStepanov25)
