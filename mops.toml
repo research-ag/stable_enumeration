@@ -7,6 +7,10 @@ keywords = [ "set", "bijective", "map", "lookup", "key", "stable" ]
 license = "Apache-2.0"
 
 [dependencies]
-test = "1.0.1"
-base = "0.10.1"
-btree = "https://github.com/research-ag/MotokoStableBTree#main"
+test = "1.2.0"
+base = "0.10.3"
+btree = "https://github.com/research-ag/MotokoStableBTree#main@44d80831198dfb8be50f9a069fbfe5ee224d30ce"
+
+[toolchain]
+moc = "0.10.3"
+wasmtime = "16.0.0"
